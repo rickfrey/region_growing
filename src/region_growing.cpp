@@ -21,13 +21,15 @@
 #include <pcl/surface/concave_hull.h>
 #include <pcl/surface/convex_hull.h>
 #include <pcl/filters/extract_indices.h>
-
+#include <pcl/kdtree/kdtree_flann.h>        // für surface
+#include <pcl/surface/gp3.h>                // für surface
+#include <pcl/io/vtk_io.h>                  // Surface/Mesh als VTK abspeichern
 
 int main(int argc, char** argv)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    if (pcl::io::loadPCDFile <pcl::PointXYZ> ("Test_xtion_langeskabel_002.pcd",*cloud_unfiltered) == -1)
+    if (pcl::io::loadPCDFile <pcl::PointXYZ> ("mehr_abstand_perfekt.pcd",*cloud_unfiltered) == -1)
     {
         std::cout<<"Cloud reading failed"<<std::endl;
         return (-1);
@@ -47,20 +49,22 @@ int main(int argc, char** argv)
 
     normal_estimator.setSearchMethod(tree);
     normal_estimator.setInputCloud(cloud);
-    normal_estimator.setKSearch(60);// Ursprünglich:50
+    normal_estimator.setKSearch(100);// Ursprünglich:50
                                     // http://pointclouds.org/documentation/tutorials/normal_estimation.php
     normal_estimator.compute(*normals);
 
     pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
-    reg.setMinClusterSize (30);
+    reg.setMinClusterSize (200);
     //reg.setMaxClusterSize (10000);
     reg.setSearchMethod (tree);
-    reg.setNumberOfNeighbours (50);
+    reg.setNumberOfNeighbours (50); // Ursprünglich 50 (Bei ca. 150 werden die Kanten schön glatt!)
+                                    // aber es wird nach zu vielen Nachbarn gecheckt-> Mehrere Banden fallen in ein Cluster
     reg.setInputCloud (cloud);
     //reg.setIndices (indices);
     reg.setInputNormals (normals);
-    reg.setSmoothnessThreshold (7.0 / 180.0 * M_PI); // Ursprünglich: 7.0/180*M_PI
-    reg.setCurvatureThreshold (1.0);//Ursprünglich:1.0
+    reg.setSmoothnessThreshold (4.0 / 180.0 * M_PI);    // Ursprünglich: 7.0/180*M_PI
+                                                        // je kleiner desto weniger punkte sind "smooth" genug ->Klares Abgrenzen der Cluster!
+    reg.setCurvatureThreshold (.4);//Ursprünglich:1.0   // je kleiner desto geringer darf sich das Cluster krümmen
 
     // Anwendung des Cluster-Filters auf Input-Wolke "cloud"
     std::vector <pcl::PointIndices> clusters;
@@ -122,7 +126,7 @@ int main(int argc, char** argv)
     seg.setModelType(pcl::SACMODEL_PLANE);
     seg.setMethodType(pcl::SAC_RANSAC);
     seg.setMaxIterations(1000);
-    seg.setDistanceThreshold(0.7);
+    seg.setDistanceThreshold(0.1);
     seg.setInputCloud(cluster_cloud);
     seg.segment(*inliers, *coefficients);
 
@@ -152,21 +156,24 @@ int main(int argc, char** argv)
       counter++;
     }
 
+    //TEST: planes_cloud zu Surface konvertieren u. als stl oder vtk speichern!
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
+    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXY>);
+    tree->setInputCloud(planes_cloud);
+    n.setInputCloud(planes_cloud);
+    n.setSearchMethod(tree);
+    n.setKSearch(20);
+    n.compute(*normals)
+            //hier weitermachen!!!
+
+
     pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
     pcl::visualization::CloudViewer viewer ("Cluster viewer");
     viewer.showCloud(colored_cloud);
     while (!viewer.wasStopped ())
     {
     }
-
-//TEST: SELBST GESCHRIEBEN
-    //pcl::PointIndices::Ptr inliers (new pcl::PointIndices());
-    //pcl::ExtractIndices<pcl::PointXYZ> extracter;
-    //extracter.setInputCloud(cloud);
-    //extracter.setIndices(clusters[0].indices[1]);
-    //extracter.setIndices(clusters[0].indices[0]);
-    //std::cout<<"clusters[0].indices[0]="<<clusters[0].indices[0]<<endl;
-    //std::cout<<"clusters[0].indices[1]="<<clusters[0].indices[1]<<endl;
 
 /*
     pcl::PointCloud <pcl::PointXYZ>::Ptr cluster_cloud=clusters[0].indices;
