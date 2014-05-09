@@ -1,0 +1,181 @@
+//#include "PointCloudMatcher.h"// ????
+
+#include <ros/ros.h>
+#include <iostream>
+#include <vector>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/search/search.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/segmentation/region_growing.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/project_inliers.h>
+#include <pcl/surface/concave_hull.h>
+#include <pcl/surface/convex_hull.h>
+#include <pcl/filters/extract_indices.h>
+
+
+int main(int argc, char** argv)
+{
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    if (pcl::io::loadPCDFile <pcl::PointXYZ> ("Test_xtion_langeskabel_002.pcd",*cloud_unfiltered) == -1)
+    {
+        std::cout<<"Cloud reading failed"<<std::endl;
+        return (-1);
+    }
+    pcl::PCDWriter writer;
+
+    //Filter für Höhen- und Tiefenbegrenzung:
+    pcl::PassThrough<pcl::PointXYZ> pass;
+    pass.setInputCloud(cloud_unfiltered);
+    pass.setFilterFieldName("z");
+    pass.setFilterLimits(-0.2,0.15);//Für Stativ ca. (-0.9,-0.2)
+    pass.filter(*cloud);
+
+    pcl::search::Search<pcl::PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZ> > (new pcl::search::KdTree<pcl::PointXYZ>);
+    pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
+    pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
+
+    normal_estimator.setSearchMethod(tree);
+    normal_estimator.setInputCloud(cloud);
+    normal_estimator.setKSearch(60);// Ursprünglich:50
+                                    // http://pointclouds.org/documentation/tutorials/normal_estimation.php
+    normal_estimator.compute(*normals);
+
+    pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
+    reg.setMinClusterSize (30);
+    //reg.setMaxClusterSize (10000);
+    reg.setSearchMethod (tree);
+    reg.setNumberOfNeighbours (50);
+    reg.setInputCloud (cloud);
+    //reg.setIndices (indices);
+    reg.setInputNormals (normals);
+    reg.setSmoothnessThreshold (7.0 / 180.0 * M_PI); // Ursprünglich: 7.0/180*M_PI
+    reg.setCurvatureThreshold (1.0);//Ursprünglich:1.0
+
+    // Anwendung des Cluster-Filters auf Input-Wolke "cloud"
+    std::vector <pcl::PointIndices> clusters;
+    reg.extract (clusters);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::ExtractIndices<pcl::PointXYZ> extract;
+    extract.setInputCloud(cloud);
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr planes_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+/*NUR FÜR STATIV!!!
+    //Suchen des größten Clusters ->Bodenebene ->Berechnung der Ebene
+    //Dieser Schritt ist nur bis zur Extraktion und Speicherung der Bodenebene geschrieben,
+    // da durch Anpassung der Number of Neigbors alle vertikalen Ebenen bereits erkannt wurden
+    int maxcluster=0;//Stelle des größten Clusters im Vektor "clusters"
+    for (int c=0;c<clusters.size();c++)
+    {
+        if(clusters[c].indices.size()>clusters[maxcluster].indices.size())
+        {
+        maxcluster=c;
+        }
+    }
+    std::cout<<"Größtes Cluster ist Cluster Nr. "<<maxcluster<<std::endl;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr boden_cloud (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::IndicesPtr bodenindices_ptr (new std::vector<int> (clusters[maxcluster].indices.size()));
+    for (int j=0;j<bodenindices_ptr->size();j++)
+    {
+        (*bodenindices_ptr)[j]=clusters[maxcluster].indices[j];
+    }
+    extract.setIndices(bodenindices_ptr);
+    extract.setNegative(false);
+    extract.filter(*boden_cloud);
+    writer.write("Test_waegelchen_xtion_langeskabel.pcd",*boden_cloud,false);
+*/
+    //SCHLEIFE ÜBER ALLE CLUSTER:////////////////////////
+    //(In Cluster_cloud ist immer nur ein Cluster!)//////
+    int b=0;
+    for(int a=0;a<clusters.size();a++)
+{
+    if(clusters[a].indices.size() >50 )
+    {
+    pcl::IndicesPtr indices_ptr (new std::vector<int> (clusters[a].indices.size ()));
+    for (int i=0;i<indices_ptr->size();i++)
+    {
+        (*indices_ptr)[i]=clusters[a].indices[i];//http://www.pcl-users.org/Removing-a-cluster-Problem-with-pointer-td4023699.html
+    }
+
+    // Punkte des Clusters werden in cluster_cloud geschrieben
+    extract.setIndices(indices_ptr);
+    extract.setNegative(false);
+    extract.filter(*cluster_cloud);// Punkte des Cluster a werden in cluster_cloud geschrieben
+    std::cout<<"cluster_cloud["<<a<<"] hat "<<cluster_cloud->width*cluster_cloud->height<<" Punkte."<<std::endl;
+
+    //Erzeugen einer Ebene aus Cluster_cloud
+    pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
+    pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+    pcl::SACSegmentation<pcl::PointXYZ> seg;
+    seg.setOptimizeCoefficients(true);
+    seg.setModelType(pcl::SACMODEL_PLANE);
+    seg.setMethodType(pcl::SAC_RANSAC);
+    seg.setMaxIterations(1000);
+    seg.setDistanceThreshold(0.7);
+    seg.setInputCloud(cluster_cloud);
+    seg.segment(*inliers, *coefficients);
+
+    // Wenn Ebene vertikal: Abspeichern in Cluster_i.pcd
+    if(coefficients->values[2]<.9 && coefficients->values[2]>(-.9))//ax+by+cz+d=0 (wenn c=0 => Ebene parallel zur z-Achse)
+    {
+    *planes_cloud+=*cluster_cloud;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
+    //std::stringstream ss;
+    //ss<<"Cluster_"<<a<<".pcd";
+    //writer.write<pcl::PointXYZ>(ss.str(),*cluster_cloud,false);
+    //std::cout<<"Cluster "<<a<<" wurde gespeichert!"<<std::endl;
+        b=b+1;
+    }
+    }
+}
+    std::cout<<"Es wurden "<<b<<" Flächen in Planes_cloud.pcd geschrieben"<<endl;
+    writer.write("Planes_cloud.pcd",*planes_cloud,false);
+
+    std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
+    std::cout << "First cluster has " << clusters[0].indices.size () << " points." << endl;
+    std::cout << "These are the indices of the points of the initial" <<
+      std::endl << "cloud that belong to the first cluster:" << std::endl;
+    int counter = 0;
+    while (counter < 5 || counter > clusters[0].indices.size ())
+    {
+      std::cout << clusters[0].indices[counter] << std::endl;
+      counter++;
+    }
+
+    pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
+    pcl::visualization::CloudViewer viewer ("Cluster viewer");
+    viewer.showCloud(colored_cloud);
+    while (!viewer.wasStopped ())
+    {
+    }
+
+//TEST: SELBST GESCHRIEBEN
+    //pcl::PointIndices::Ptr inliers (new pcl::PointIndices());
+    //pcl::ExtractIndices<pcl::PointXYZ> extracter;
+    //extracter.setInputCloud(cloud);
+    //extracter.setIndices(clusters[0].indices[1]);
+    //extracter.setIndices(clusters[0].indices[0]);
+    //std::cout<<"clusters[0].indices[0]="<<clusters[0].indices[0]<<endl;
+    //std::cout<<"clusters[0].indices[1]="<<clusters[0].indices[1]<<endl;
+
+/*
+    pcl::PointCloud <pcl::PointXYZ>::Ptr cluster_cloud=clusters[0].indices;
+    pcl::visualization::CloudViewer viewer ("Cluster viewer");
+    viewer.showCloud(cluster_cloud);
+    while (!viewer.wasStopped())
+    {
+    }
+*/
+      return (0);
+
+}
