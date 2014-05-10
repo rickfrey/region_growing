@@ -165,6 +165,31 @@ int main(int argc, char** argv)
     n.setSearchMethod(tree);
     n.setKSearch(20);
     n.compute(*normals)
+
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+    pcl::concatenateFields (*planes_cloud,*normals,*cloud_with_normals)
+    pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
+    tree2->setInputCloud(cloud_with_normals);
+
+    pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+    pcl::PolygonMesh triangles;
+    gp3.setSearchRadius(0.025);
+    gp3.setMu(2.5);
+    gp3.setMaximumNearestNeighbors(100);
+    gp3.setMaximumSurfaceAngle(M_PI/4);
+    gp3.setMinimumAngle(M_PI/18);
+    gp3.setMaximumAngle(2*M_PI/3);
+    gp3.setNormalConsistency(false);
+
+    gp3.setInputCloud(cloud_with_normals);
+    gp3.setSearchMethod(tree2);
+    gp3.reconstruct(triangles);
+
+    std::vector<int> parts = gp3.getPartIDs();
+    std::vector<int> states = gp3.getPointStates();
+
+    pcl::io::saveVTKFile("mesh.vtk", triangles);
+
             //hier weitermachen!!!
 
 
