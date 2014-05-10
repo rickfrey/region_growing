@@ -24,7 +24,7 @@
 #include <pcl/kdtree/kdtree_flann.h>        // für surface
 #include <pcl/surface/gp3.h>                // für surface
 #include <pcl/io/vtk_io.h>                  // Surface/Mesh als VTK abspeichern
-
+//TEST BRANCH LAPTOP
 int main(int argc, char** argv)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
