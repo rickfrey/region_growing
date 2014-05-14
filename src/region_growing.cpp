@@ -24,6 +24,7 @@
 #include <pcl/kdtree/kdtree_flann.h>        // für surface
 #include <pcl/surface/gp3.h>                // für surface
 #include <pcl/io/vtk_io.h>                  // Surface/Mesh als VTK abspeichern
+#include <pcl/io/vtk_lib_io.h>              // Mesh als STL abspeichern
 
 int main(int argc, char** argv)
 {
@@ -133,7 +134,16 @@ int main(int argc, char** argv)
     // Wenn Ebene vertikal: Abspeichern in Cluster_i.pcd
     if(coefficients->values[2]<.9 && coefficients->values[2]>(-.9))//ax+by+cz+d=0 (wenn c=0 => Ebene parallel zur z-Achse)
     {
-    *planes_cloud+=*cluster_cloud;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
+        pcl::PointCloud<pcl::PointXYZ>::Ptr planes_projected (new pcl::PointCloud<pcl::PointXYZ>);
+        //Inliers auf Ebene projizieren:
+        pcl::ProjectInliers<pcl::PointXYZ> proj;
+        proj.setModelType(pcl::SACMODEL_PLANE);
+        proj.setIndices(inliers);
+        proj.setInputCloud(cluster_cloud);
+        proj.setModelCoefficients(coefficients);
+        proj.filter(*planes_projected);
+
+    *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
     //std::stringstream ss;
     //ss<<"Cluster_"<<a<<".pcd";
     //writer.write<pcl::PointXYZ>(ss.str(),*cluster_cloud,false);
@@ -158,13 +168,38 @@ int main(int argc, char** argv)
 
     //TEST: planes_cloud zu Surface konvertieren u. als stl oder vtk speichern!
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
-    pcl::PointCloud<pcl::Normal>::Ptr normals (new pcl::PointCloud<pcl::Normal>);
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXY>);
-    tree->setInputCloud(planes_cloud);
+    pcl::PointCloud<pcl::Normal>::Ptr normals_triangles (new pcl::PointCloud<pcl::Normal>);
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree_triangles (new pcl::search::KdTree<pcl::PointXYZ>);
+    tree_triangles->setInputCloud(planes_cloud);
     n.setInputCloud(planes_cloud);
-    n.setSearchMethod(tree);
+    n.setSearchMethod(tree_triangles);
     n.setKSearch(20);
-    n.compute(*normals)
+    n.compute(*normals_triangles);
+
+    pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
+    pcl::concatenateFields (*planes_cloud,*normals_triangles,*cloud_with_normals);
+    pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
+    tree2->setInputCloud(cloud_with_normals);
+
+    pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
+    pcl::PolygonMesh triangles;
+    gp3.setSearchRadius(0.5);// Ursprünglich 0.025
+    gp3.setMu(25.0); // Ursprünglich 2.5
+    gp3.setMaximumNearestNeighbors(100);
+    gp3.setMaximumSurfaceAngle(M_PI/4);
+    gp3.setMinimumAngle(M_PI/18);
+    gp3.setMaximumAngle(2*M_PI/3);
+    gp3.setNormalConsistency(false);
+
+    gp3.setInputCloud(cloud_with_normals);
+    gp3.setSearchMethod(tree2);
+    gp3.reconstruct(triangles);
+
+    std::vector<int> parts = gp3.getPartIDs();
+    std::vector<int> states = gp3.getPointStates();
+
+    pcl::io::savePolygonFileSTL("mesh.stl", triangles);
+    //pcl::io::saveVTKFile("mesh.vtk", triangles);
             //hier weitermachen!!!
 
 
