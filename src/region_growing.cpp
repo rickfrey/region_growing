@@ -192,6 +192,7 @@ int main(int argc, char** argv)
     gp3.setMaximumAngle(2*M_PI/3);
     gp3.setNormalConsistency(false);
 
+
     gp3.setInputCloud(cloud_with_normals);
     gp3.setSearchMethod(tree2);
     gp3.reconstruct(triangles);
