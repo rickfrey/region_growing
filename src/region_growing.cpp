@@ -178,6 +178,7 @@ int main(int argc, char** argv)
 
     pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
     pcl::concatenateFields (*planes_cloud,*normals_triangles,*cloud_with_normals);
+
     pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
     tree2->setInputCloud(cloud_with_normals);
 
@@ -200,6 +201,7 @@ int main(int argc, char** argv)
 
     pcl::io::savePolygonFileSTL("mesh.stl", triangles);
     //pcl::io::saveVTKFile("mesh.vtk", triangles);
+
             //hier weitermachen!!!
 
 
