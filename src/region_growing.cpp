@@ -25,6 +25,7 @@
 #include <pcl/surface/gp3.h>                // für surface
 #include <pcl/io/vtk_io.h>                  // Surface/Mesh als VTK abspeichern
 #include <pcl/io/vtk_lib_io.h>              // Mesh als STL abspeichern
+#include <pcl/common/pca.h>
 
 #include <vtkUnstructuredGrid.h>
 #include <vtkPoints.h>
@@ -146,73 +147,94 @@ int main(int argc, char** argv)
             {
                 pcl::PointCloud<pcl::PointXYZ>::Ptr planes_projected (new pcl::PointCloud<pcl::PointXYZ>);
                 //Inliers auf Ebene projizieren:
-                pcl::ProjectInliers<pcl::PointXYZ> proj;
-                proj.setModelType(pcl::SACMODEL_PLANE);
-                proj.setIndices(inliers);
-                proj.setInputCloud(cluster_cloud);
-                proj.setModelCoefficients(coefficients);
-                proj.filter(*planes_projected);
-
-                //Convert to vtkPointSet to get BoundingBox
-                vtkSmartPointer< vtkUnstructuredGrid > vtkPs = vtkSmartPointer<vtkUnstructuredGrid >::New();
-                vtkSmartPointer< vtkPoints > vtkPts = vtkSmartPointer<vtkPoints>::New();
-
-                for(int z = 0; z< planes_projected->size(); ++z)
-                    vtkPts->InsertNextPoint(planes_projected->points[z].x, planes_projected->points[z].y, planes_projected->points[z].z);
-
-                vtkPs->SetPoints(vtkPts);
-
-                //Debug **********************************************************************************************************
-
-                vtkPs->ComputeBounds();
-                double* bb = vtkPs->GetBounds();
-
-                pcl::PointCloud <pcl::PointXYZRGB>::Ptr boundingBox(new pcl::PointCloud<pcl::PointXYZRGB> );
-                pcl::PointXYZRGB pt(255,0,0);
-                pt.x= bb[0];
-                pt.y= bb[1];
-                pt.z= bb[2];
-                boundingBox->push_back(pt);
-                pt.x= bb[3];
-                pt.y= bb[1];
-                pt.z= bb[2];
-                boundingBox->push_back(pt);
-                pt.x= bb[0];
-                pt.y= bb[1];
-                pt.z= bb[5];
-                boundingBox->push_back(pt);
-                pt.x= bb[3];
-                pt.y= bb[1];
-                pt.z= bb[5];
-                boundingBox->push_back(pt);
-                pt.x= bb[0];
-                pt.y= bb[4];
-                pt.z= bb[2];
-                boundingBox->push_back(pt);
-                pt.x= bb[3];
-                pt.y= bb[4];
-                pt.z= bb[2];
-                boundingBox->push_back(pt);
-                pt.x= bb[0];
-                pt.y= bb[4];
-                pt.z= bb[5];
-                boundingBox->push_back(pt);
-                pt.x= bb[3];
-                pt.y= bb[4];
-                pt.z= bb[5];
-                boundingBox->push_back(pt);
+                pcl::PCA<pcl::PointXYZ> pca2;
+                pcl::ProjectInliers<pcl::PointXYZ> proj2;
+                proj2.setModelType(pcl::SACMODEL_PLANE);
+                proj2.setIndices(inliers);
+                proj2.setInputCloud(cluster_cloud);
+                proj2.setModelCoefficients(coefficients);
+                proj2.filter(*planes_projected);
 
 
+                // pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
+                // Finding oriented bounding box of a cloud
+                //compute principal direction
+                Vector4f centroid;
+                pcl::compute3DCentroid(*planes_projected,centroid);
+                Matrix3f covariance;
+                pcl::computeCovarianceMatrixNormalized(*planes_projected,centroid,covariance);
+                SelfAdjointEigenSolver<Matrix3f> eigen_solver(covariance,ComputeEigenvectors);
+                Matrix3f eigDx = eigen_solver.eigenvectors();
+                eigDx.cols(2) = eigDx.cols(0).cross(eigDx.cols(1));
 
-                pcl::visualization::CloudViewer viewer ("Bounding Box viewer");
+                //move the points to the referance frame
+                Matrix4f p2w (Matrix4f::Identity());
+                p2w.block<3,3>(0,0 = eigDx.transpose)
 
-                viewer.showCloud(planes_projected);
-                viewer.showCloud(boundingBox);
-                while (!viewer.wasStopped ())
-                {
-                }
-                //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
+//
+//                //calc boundingbox
+//              pcl::PCA<pcl::PointXYZ> pca;
+//                pcl::PointCloud<pcl::PointXYZ> proj;
+//
+//                pca.setInputCloud (planes_projected);
+//                pca.project (*planes_projected, proj);
+//
+//                pcl::PointXYZ proj_min;
+//                pcl::PointXYZ proj_max;
+//                pcl::getMinMax3D (proj, proj_min, proj_max);
+//
+//                pcl::PointXYZ min;
+//                pcl::PointXYZ max;
+//                pca.reconstruct (proj_min, min);
+//                pca.reconstruct (proj_max, max);
+//                std::cout << " min.x= " << min.x << " max.x= " << max.x << " min.y= " <<
+//                             min.y << " max.y= " << max.y << " min.z= " << min.z << " max.z= " << max.z
+//                          << std::endl;
+//
+//                //Rotation of PCA
+//                Eigen::Matrix3f rot_mat = pca.getEigenVectors ();
+//
+//                //translation of PCA
+//                Eigen::Vector3f cl_translation = pca.getMean().head(3);
+//
+//                Eigen::Matrix3f affine_trans;
+//                std::cout << rot_mat << std::endl;
+//                //Reordering of principal components
+//                affine_trans.col(0) <<
+//                                       (rot_mat.col(0).cross(rot_mat.col(1))).normalized();
+//                affine_trans.col(1) << rot_mat.col(0);
+//                affine_trans.col(2) << rot_mat.col(1);
+//                //affine_trans.col(3) << cl_translation,1;/**/
+//
+//                std::cout << affine_trans << std::endl;
+//
+//                Eigen::Quaternionf rotation = Eigen::Quaternionf (affine_trans);
+//                Eigen::Vector4f t = pca.getMean();
+//
+//                Eigen::Vector3f translation = Eigen::Vector3f (t.x(), t.y(), t.z());
+//
+//                double width = fabs(proj_max.x-proj_min.x);
+//                double height = fabs(proj_max.y-proj_min.y);
+//                double depth = fabs(proj_max.z-proj_min.z);
+//
+//                //adding the bounding box to a viewer :
+//                boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new
+//                pcl::visualization::PCLVisualizer ("3D Viewer"));
+//                viewer->setBackgroundColor (0, 0, 0);
+//                viewer->addPointCloud<pcl::PointXYZ> (planes_projected, "NAO arm cloud");
+//                viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "NAO arm cloud");
+//
+//                viewer->addCoordinateSystem ();
+//                viewer->initCameraParameters ();
+//                //viewer->addCube (min.x, max.x, min.y, max.y, min.z, max.z);/**/
+//                viewer->addCube (translation, rotation, width, height, depth);
+//                while (!viewer->wasStopped ())
+//                {
+//                    viewer->spinOnce (100);
+//                    boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+//                }
+//                //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//
                 *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
                 //std::stringstream ss;
                 //ss<<"Cluster_"<<a<<".pcd";
