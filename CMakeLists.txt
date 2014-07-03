@@ -15,6 +15,9 @@ include_directories(
     ${PCL_INCLUDE_DIRS}
 )
 
+find_package(VTK REQUIRED)
+include(${VTK_USE_FILE})
+
 add_definitions(${EIGEN_DEFINITIONS})
 
 catkin_package(
@@ -30,4 +33,5 @@ target_link_libraries(region_growing_node
   ${catkin_LIBRARIES}
    ${PCL_LIBRARIES}
    ${Eigen_LIBRARIES}
+    ${VTK_LIBRARIES}
 )
