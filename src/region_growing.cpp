@@ -131,8 +131,8 @@ int main(int argc, char** argv)
             pcl::IndicesPtr indices_ptr (new std::vector<int> (clusters[a].indices.size ()));
             for (int i=0;i<indices_ptr->size();i++)
             {
-                (*indices_ptr)[i]=clusters[a].indices[i];//http://www.pcl-users.org/Removing-a-cluster-Problem-with-pointer-td4023699.html
-            }
+                (*indices_ptr)[i]=clusters[a].indices[i];   // http://www.pcl-users.org/Removing-a-cluster-Problem-with-pointer-td4023699.html
+            }                                               // Indizes des jeweiligen Clusters werden alle in indices_ptr gespeichert
 
             // Punkte des Clusters werden in cluster_cloud geschrieben
             extract.setIndices(indices_ptr);
@@ -210,6 +210,7 @@ int main(int argc, char** argv)
                   viewer->addLine (center, y_axis, 0.0f, 1.0f, 0.0f, "middle eigen vector");
                   viewer->addLine (center, z_axis, 0.0f, 0.0f, 1.0f, "minor eigen vector");
 */
+
 /*
                 // pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
                 // Finding oriented bounding box of a cloud
@@ -241,10 +242,12 @@ int main(int argc, char** argv)
                 pcl::visualization::PCLVisualizer viewer;
                 viewer.addPointCloud(planes_projected);
                 viewer.addCube(tfinal,qfinal,max_pt.x-min_pt.x,max_pt.y-min_pt.y,max_pt.z-min_pt.z);
+                viewer.spin();
 */
 
+                                        // BOUNDINGBOX!!!
                                         //calc boundingbox
-                                        pcl::PCA<pcl::PointXYZ> pca;
+                                        pcl::PCA<pcl::PointXYZ> pca;        // Principal Component Analysis Class
                                         pcl::PointCloud<pcl::PointXYZ> proj;
 
                                         pca.setInputCloud (planes_projected);
@@ -308,6 +311,7 @@ int main(int argc, char** argv)
                                             boost::this_thread::sleep (boost::posix_time::microseconds (100000));
                                         }
                                         //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
 
                         *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
                 //std::stringstream ss;
