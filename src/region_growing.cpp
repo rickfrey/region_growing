@@ -339,10 +339,11 @@ int main(int argc, char** argv)
                 const Eigen::Vector3f tfinal = eigDx*mean_diag + centroid.head<3>();
 
                 // draw the cloud and the box
-                pcl::visualization::PCLVisualizer viewer;
-                viewer.addCoordinateSystem ();
-                //viewer.addPointCloud(planes_projected);
-                //viewer.addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
+                //pcl::visualization::PCLVisualizer viewer;
+                boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer);
+                viewer->addCoordinateSystem ();
+                //viewer->addPointCloud(planes_projected);
+                viewer->addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
                 std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " <<
                              min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
                 std::cout << "Punkte: " << min_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
@@ -383,14 +384,15 @@ int main(int argc, char** argv)
                         Test->push_back(pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii + (P3.x-P1.x)/AnzahlPunktehoch*jj,P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii + (P3.y-P1.y)/AnzahlPunktehoch*jj,P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii + (P3.z-P1.z)/AnzahlPunktehoch*jj));
                     }
                 }
+                pcl::PointCloud<pcl::PointXYZ>::Ptr Test_transformiert (new pcl::PointCloud<pcl::PointXYZ>);
+                pcl::transformPointCloud(*Test,*Test_transformiert,tfinal,qfinal);
+                //viewer->addPointCloud(Test_transformiert);
 
-                viewer.addPointCloud(Test);
-
-                viewer.spin();
+                //viewer->spin();
 
 
 
-                *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
+                *planes_cloud+=*Test_transformiert;//Alle Clusterebenen, die vertikal sind werden in planes_cloud (JETZT: Test) gespeichert
                 //std::stringstream ss;
                 //ss<<"Cluster_"<<a<<".pcd";
                 //writer.write<pcl::PointXYZ>(ss.str(),*cluster_cloud,false);
@@ -431,12 +433,12 @@ int main(int argc, char** argv)
 
     pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
     pcl::PolygonMesh triangles;
-    gp3.setSearchRadius(0.5);// Ursprünglich 0.025
-    gp3.setMu(25.0); // Ursprünglich 2.5
-    gp3.setMaximumNearestNeighbors(100);
+    gp3.setSearchRadius(0.8);// Ursprünglich 0.025
+    gp3.setMu(30.0); // Ursprünglich 2.5
+    gp3.setMaximumNearestNeighbors(10); // davor 100
     gp3.setMaximumSurfaceAngle(M_PI/4);
     gp3.setMinimumAngle(M_PI/18);
-    gp3.setMaximumAngle(2*M_PI/3);
+    gp3.setMaximumAngle(2*M_PI/2); // ursprunglich: 2*M_PI/3
     gp3.setNormalConsistency(false);
 
 
