@@ -244,73 +244,130 @@ int main(int argc, char** argv)
                 viewer.addCube(tfinal,qfinal,max_pt.x-min_pt.x,max_pt.y-min_pt.y,max_pt.z-min_pt.z);
                 viewer.spin();
 */
-
+/*
                                         // BOUNDINGBOX!!!
-                                        //calc boundingbox
-                                        pcl::PCA<pcl::PointXYZ> pca;        // Principal Component Analysis Class
-                                        pcl::PointCloud<pcl::PointXYZ> proj;
+//                                        //calc boundingbox
+//                                        pcl::PCA<pcl::PointXYZ> pca;        // Principal Component Analysis Class
+//                                        pcl::PointCloud<pcl::PointXYZ> proj;
 
-                                        pca.setInputCloud (planes_projected);
-                                        pca.project (*planes_projected, proj);
+//                                        pca.setInputCloud (planes_projected);
+//                                        pca.project (*planes_projected, proj);
 
-                                        pcl::PointXYZ proj_min;
-                                        pcl::PointXYZ proj_max;
-                                        pcl::getMinMax3D (proj, proj_min, proj_max);
+//                                        pcl::PointXYZ proj_min;
+//                                        pcl::PointXYZ proj_max;
+//                                        pcl::getMinMax3D (proj, proj_min, proj_max);
 
-                                        pcl::PointXYZ min;
-                                        pcl::PointXYZ max;
-                                        pca.reconstruct (proj_min, min);
-                                        pca.reconstruct (proj_max, max);
-                                        std::cout << " min.x= " << min.x << " max.x= " << max.x << " min.y= " <<
-                                                     min.y << " max.y= " << max.y << " min.z= " << min.z << " max.z= " << max.z
-                                                  << std::endl;
+//                                        pcl::PointXYZ min;
+//                                        pcl::PointXYZ max;
+//                                        pca.reconstruct (proj_min, min);
+//                                        pca.reconstruct (proj_max, max);
+//                                        std::cout << " min.x= " << min.x << " max.x= " << max.x << " min.y= " <<
+//                                                     min.y << " max.y= " << max.y << " min.z= " << min.z << " max.z= " << max.z
+//                                                  << std::endl;
 
-                                        //Rotation of PCA
-                                        Eigen::Matrix3f rot_mat = pca.getEigenVectors ();
+//                                        //Rotation of PCA
+//                                        Matrix3f rot_mat = pca.getEigenVectors (); // ursprünglich: Eigen::Matrix3f
 
-                                        //translation of PCA
-                                        Eigen::Vector3f cl_translation = pca.getMean().head(3);
+//                                        //translation of PCA
+//                                        Vector3f cl_translation = pca.getMean().head(3); // ursprünglich: Eigen::Vector3f
 
-                                        Eigen::Matrix3f affine_trans;
-                                        std::cout << rot_mat << std::endl;
+//                                        Matrix4f affine_trans; // ursprünglich: Eigen::Matrix3f
+//                                        std::cout << "blub" << rot_mat << std::endl;
 
 
-                                        //Reordering of principal components
+//                                        //Reordering of principal components
 
-                                        // HIER LIEGT DAS PROBLEM!!!!!
-                                        affine_trans.col(0) << (rot_mat.col(0).cross(rot_mat.col(1))).normalized();
-                                        affine_trans.col(1) << rot_mat.col(0); // ursprünglich 0
-                                        affine_trans.col(2) << rot_mat.col(1); // ursprünglich 1
-                                        //affine_trans.col(3) << cl_translation,1;/**/
+//                                        // HIER LIEGT DAS PROBLEM!!!!!
+//                                        affine_trans.col(0) << (rot_mat.col(0).cross(rot_mat.col(1))).normalized();
+//                                        affine_trans.col(1) << rot_mat.col(0); // ursprünglich 0
+//                                        affine_trans.col(2) << rot_mat.col(1); // ursprünglich 1
+//                                        affine_trans.col(3) << cl_translation,1;
 
-                                        std::cout << affine_trans << std::endl;
+//                                        std::cout << affine_trans << std::endl;
 
-                                        Eigen::Quaternionf rotation = Eigen::Quaternionf (affine_trans);
-                                        Eigen::Vector4f t = pca.getMean();
+//                                        Eigen::Quaternionf rotation = Eigen::Quaternionf (affine_trans);
+//                                        Eigen::Vector4f t = pca.getMean();
 
-                                        Eigen::Vector3f translation = Eigen::Vector3f (t.x(), t.y(), t.z());
+//                                        Eigen::Vector3f translation = Eigen::Vector3f (t.x(), t.y(), t.z());
 
-                                        double width = fabs(proj_max.x-proj_min.x);
-                                        double height = fabs(proj_max.y-proj_min.y);
-                                        double depth = fabs(proj_max.z-proj_min.z);
+//                                        double width = fabs(proj_max.x-proj_min.x);
+//                                        double height = fabs(proj_max.y-proj_min.y);
+//                                        double depth = fabs(proj_max.z-proj_min.z);
 
-                                        //adding the bounding box to a viewer :
-                                        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new
-                                        pcl::visualization::PCLVisualizer ("3D Viewer"));
-                                        viewer->setBackgroundColor (0, 0, 0);
-                                        viewer->addPointCloud<pcl::PointXYZ> (planes_projected, "NAO arm cloud");
-                                        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "NAO arm cloud");
+//                                        //adding the bounding box to a viewer :
+//                                        boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new
+//                                        pcl::visualization::PCLVisualizer ("3D Viewer"));
+//                                        viewer->setBackgroundColor (0, 0, 0);
+//                                        viewer->addPointCloud<pcl::PointXYZ> (planes_projected, "NAO arm cloud");
+//                                        viewer->setPointCloudRenderingProperties(pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "NAO arm cloud");
 
-                                        viewer->addCoordinateSystem ();
-                                        viewer->initCameraParameters ();
-                                        //viewer->addCube (min.x, max.x, min.y, max.y, min.z, max.z);/**/
-                                        viewer->addCube (translation, rotation, width, height, depth);
-                                        while (!viewer->wasStopped ())
-                                        {
-                                            viewer->spinOnce (100);
-                                            boost::this_thread::sleep (boost::posix_time::microseconds (100000));
-                                        }
-                                        //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//                                        viewer->addCoordinateSystem ();
+//                                        viewer->initCameraParameters ();
+//                                        //viewer->addCube (min.x, max.x, min.y, max.y, min.z, max.z);
+//                                        viewer->addCube (translation, rotation, width, height, depth);
+//                                        while (!viewer->wasStopped ())
+//                                        {
+//                                            viewer->spinOnce (100);
+//                                            boost::this_thread::sleep (boost::posix_time::microseconds (100000));
+//                                        }
+//                                        //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+*/
+
+                // pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
+                 // compute principal direction
+                 Eigen::Vector4f centroid;
+                 pcl::compute3DCentroid(*planes_projected, centroid);
+                 Eigen::Matrix3f covariance;
+                 computeCovarianceMatrixNormalized(*planes_projected, centroid, covariance);
+                 Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
+                 Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
+                 eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
+
+                 // move the points to the that reference frame
+                 Eigen::Matrix4f p2w(Eigen::Matrix4f::Identity());
+                 p2w.block<3,3>(0,0) = eigDx.transpose();
+                 p2w.block<3,1>(0,3) = -1.f * (p2w.block<3,3>(0,0) * centroid.head<3>());
+                 pcl::PointCloud<pcl::PointXYZ> cPoints;
+                 pcl::transformPointCloud(*planes_projected, cPoints, p2w);
+
+                 pcl::PointXYZ min_pt, max_pt;
+                 pcl::getMinMax3D(cPoints, min_pt, max_pt);
+                 const Eigen::Vector3f mean_diag = 0.5f*(max_pt.getVector3fMap() + min_pt.getVector3fMap());
+
+                 // final transform
+                 const Eigen::Quaternionf qfinal(eigDx);
+                 const Eigen::Vector3f tfinal = eigDx*mean_diag + centroid.head<3>();
+
+                 // draw the cloud and the box
+                 pcl::visualization::PCLVisualizer viewer;
+                 viewer.addCoordinateSystem ();
+                 //viewer.addPointCloud(planes_projected);
+                 //viewer.addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
+                 std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " <<
+                 min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
+                 std::cout << "Punkte: " << min_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
+                 std::cout << min_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
+                 std::cout << min_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
+                 std::cout << min_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
+                 std::cout << max_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
+                 std::cout << max_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
+                 std::cout << max_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
+                 std::cout << max_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
+
+                 pcl::PointCloud<pcl::PointXYZ>::Ptr Test (new pcl::PointCloud<pcl::PointXYZ>);
+                 Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, min_pt.z));
+                 Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, max_pt.z));
+                 Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, min_pt.z));
+                 Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, max_pt.z));    // Enweder alle x_max oder alle x_min nehmen WARUM?????
+//                 Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, min_pt.z));
+//                 Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, max_pt.z));
+//                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, min_pt.z));
+//                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
+
+                 viewer.addPointCloud(Test);
+
+                 viewer.spin();
+
 
 
                         *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
