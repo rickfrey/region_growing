@@ -167,7 +167,7 @@ int main(int argc, char** argv)
 
                 // PCL ONLINE TUTORIAL
                 // http://pointclouds.org/documentation/tutorials/moment_of_inertia.php
-/*                  pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
+                /*                  pcl::MomentOfInertiaEstimation <pcl::PointXYZ> feature_extractor;
                   feature_extractor.setInputCloud (planes_projected);
                   feature_extractor.compute ();
 
@@ -211,7 +211,7 @@ int main(int argc, char** argv)
                   viewer->addLine (center, z_axis, 0.0f, 0.0f, 1.0f, "minor eigen vector");
 */
 
-/*
+                /*
                 // pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
                 // Finding oriented bounding box of a cloud
                 //compute principal direction
@@ -244,7 +244,7 @@ int main(int argc, char** argv)
                 viewer.addCube(tfinal,qfinal,max_pt.x-min_pt.x,max_pt.y-min_pt.y,max_pt.z-min_pt.z);
                 viewer.spin();
 */
-/*
+                /*
                                         // BOUNDINGBOX!!!
 //                                        //calc boundingbox
 //                                        pcl::PCA<pcl::PointXYZ> pca;        // Principal Component Analysis Class
@@ -314,63 +314,83 @@ int main(int argc, char** argv)
 */
 
                 // pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
-                 // compute principal direction
-                 Eigen::Vector4f centroid;
-                 pcl::compute3DCentroid(*planes_projected, centroid);
-                 Eigen::Matrix3f covariance;
-                 computeCovarianceMatrixNormalized(*planes_projected, centroid, covariance);
-                 Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
-                 Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
-                 eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
+                // compute principal direction
+                Eigen::Vector4f centroid;
+                pcl::compute3DCentroid(*planes_projected, centroid);
+                Eigen::Matrix3f covariance;
+                computeCovarianceMatrixNormalized(*planes_projected, centroid, covariance);
+                Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
+                Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
+                eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
 
-                 // move the points to the that reference frame
-                 Eigen::Matrix4f p2w(Eigen::Matrix4f::Identity());
-                 p2w.block<3,3>(0,0) = eigDx.transpose();
-                 p2w.block<3,1>(0,3) = -1.f * (p2w.block<3,3>(0,0) * centroid.head<3>());
-                 pcl::PointCloud<pcl::PointXYZ> cPoints;
-                 pcl::transformPointCloud(*planes_projected, cPoints, p2w);
+                // move the points to the that reference frame
+                Eigen::Matrix4f p2w(Eigen::Matrix4f::Identity());
+                p2w.block<3,3>(0,0) = eigDx.transpose();
+                p2w.block<3,1>(0,3) = -1.f * (p2w.block<3,3>(0,0) * centroid.head<3>());
+                pcl::PointCloud<pcl::PointXYZ> cPoints;
+                pcl::transformPointCloud(*planes_projected, cPoints, p2w);
 
-                 pcl::PointXYZ min_pt, max_pt;
-                 pcl::getMinMax3D(cPoints, min_pt, max_pt);
-                 const Eigen::Vector3f mean_diag = 0.5f*(max_pt.getVector3fMap() + min_pt.getVector3fMap());
+                pcl::PointXYZ min_pt, max_pt;
+                pcl::getMinMax3D(cPoints, min_pt, max_pt);
+                const Eigen::Vector3f mean_diag = 0.5f*(max_pt.getVector3fMap() + min_pt.getVector3fMap());
 
-                 // final transform
-                 const Eigen::Quaternionf qfinal(eigDx);
-                 const Eigen::Vector3f tfinal = eigDx*mean_diag + centroid.head<3>();
+                // final transform
+                const Eigen::Quaternionf qfinal(eigDx);
+                const Eigen::Vector3f tfinal = eigDx*mean_diag + centroid.head<3>();
 
-                 // draw the cloud and the box
-                 pcl::visualization::PCLVisualizer viewer;
-                 viewer.addCoordinateSystem ();
-                 //viewer.addPointCloud(planes_projected);
-                 //viewer.addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
-                 std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " <<
-                 min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
-                 std::cout << "Punkte: " << min_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
-                 std::cout << min_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
-                 std::cout << min_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
-                 std::cout << min_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
-                 std::cout << max_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
-                 std::cout << max_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
-                 std::cout << max_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
-                 std::cout << max_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
+                // draw the cloud and the box
+                pcl::visualization::PCLVisualizer viewer;
+                viewer.addCoordinateSystem ();
+                //viewer.addPointCloud(planes_projected);
+                //viewer.addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
+                std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " <<
+                             min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
+                std::cout << "Punkte: " << min_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
+                std::cout << min_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
+                std::cout << min_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
+                std::cout << min_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
+                std::cout << max_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
+                std::cout << max_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
+                std::cout << max_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
+                std::cout << max_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
 
-                 pcl::PointCloud<pcl::PointXYZ>::Ptr Test (new pcl::PointCloud<pcl::PointXYZ>);
-                 Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, min_pt.z));
-                 Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, max_pt.z));
-                 Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, min_pt.z));
-                 Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, max_pt.z));    // Enweder alle x_max oder alle x_min nehmen WARUM?????
-//                 Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, min_pt.z));
-//                 Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, max_pt.z));
-//                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, min_pt.z));
-//                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
+                pcl::PointCloud<pcl::PointXYZ>::Ptr Test (new pcl::PointCloud<pcl::PointXYZ>);
+                pcl::PointXYZ P1,P2,P3,P4;
+                P1.x=min_pt.x;P2.x=min_pt.x; P3.x=min_pt.x; P4.x=min_pt.x;
+                P1.y=min_pt.y;P2.y=min_pt.y; P3.y=max_pt.y; P4.y=max_pt.y;
+                P1.z=min_pt.z;P2.z=max_pt.z; P3.z=min_pt.z; P4.z=max_pt.z;
 
-                 viewer.addPointCloud(Test);
+                Test->push_back(P1);
+                Test->push_back(P2);
+                Test->push_back(P3);
+                Test->push_back(P4);
 
-                 viewer.spin();
+                //                 Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, min_pt.z)); // P1
+                //                 Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, max_pt.z)); // P2
+                //                 Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, min_pt.z)); // P3
+                //                 Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, max_pt.z)); // P4   // Enweder alle x_max oder alle x_min nehmen WARUM?????
+                //                 Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, min_pt.z));
+                //                 Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, max_pt.z));
+                //                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, min_pt.z));
+                //                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
+
+                // Schleife, um BoundingBox-"Fläche" mit Punkten zu füllen (um ein Mesh erzeugen zu können
+                int AnzahlPunktehoch = 20;
+                int AnzahlPunktebreit = 50;
+                for(int ii=0; ii<AnzahlPunktebreit+1; ii++){
+                    Test->push_back(pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii,P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii,P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii));
+                    for(int jj=0; jj<AnzahlPunktehoch+1; jj++){
+                        Test->push_back(pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii + (P3.x-P1.x)/AnzahlPunktehoch*jj,P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii + (P3.y-P1.y)/AnzahlPunktehoch*jj,P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii + (P3.z-P1.z)/AnzahlPunktehoch*jj));
+                    }
+                }
+
+                viewer.addPointCloud(Test);
+
+                viewer.spin();
 
 
 
-                        *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
+                *planes_cloud+=*planes_projected;//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
                 //std::stringstream ss;
                 //ss<<"Cluster_"<<a<<".pcd";
                 //writer.write<pcl::PointXYZ>(ss.str(),*cluster_cloud,false);
