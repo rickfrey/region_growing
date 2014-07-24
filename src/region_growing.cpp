@@ -47,6 +47,11 @@
 
 using namespace Eigen;
 
+void background_color (pcl::visualization::PCLVisualizer& viewer)
+{
+    viewer.setBackgroundColor (1.0, 1.0, 1.0);
+}
+
 int main(int argc, char** argv)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
@@ -376,8 +381,8 @@ int main(int argc, char** argv)
                 //                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
 
                 // Schleife, um BoundingBox-"Fläche" mit Punkten zu füllen (um ein Mesh erzeugen zu können
-                int AnzahlPunktehoch = 20;
-                int AnzahlPunktebreit = 50;
+                int AnzahlPunktehoch = 80;
+                int AnzahlPunktebreit = 400;
                 for(int ii=0; ii<AnzahlPunktebreit+1; ii++){
                     Test->push_back(pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii,P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii,P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii));
                     for(int jj=0; jj<AnzahlPunktehoch+1; jj++){
@@ -387,10 +392,7 @@ int main(int argc, char** argv)
                 pcl::PointCloud<pcl::PointXYZ>::Ptr Test_transformiert (new pcl::PointCloud<pcl::PointXYZ>);
                 pcl::transformPointCloud(*Test,*Test_transformiert,tfinal,qfinal);
                 //viewer->addPointCloud(Test_transformiert);
-
                 //viewer->spin();
-
-
 
                 *planes_cloud+=*Test_transformiert;//Alle Clusterebenen, die vertikal sind werden in planes_cloud (JETZT: Test) gespeichert
                 //std::stringstream ss;
@@ -415,7 +417,7 @@ int main(int argc, char** argv)
         counter++;
     }
 
-    //TEST: planes_cloud zu Surface konvertieren u. als stl oder vtk speichern!
+    // planes_cloud zu Surface konvertieren u. als stl oder vtk speichern!
     pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
     pcl::PointCloud<pcl::Normal>::Ptr normals_triangles (new pcl::PointCloud<pcl::Normal>);
     pcl::search::KdTree<pcl::PointXYZ>::Ptr tree_triangles (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -433,15 +435,13 @@ int main(int argc, char** argv)
 
     pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
     pcl::PolygonMesh triangles;
-    gp3.setSearchRadius(0.8);// Ursprünglich 0.025
-    gp3.setMu(30.0); // Ursprünglich 2.5
-    gp3.setMaximumNearestNeighbors(10); // davor 100
-    gp3.setMaximumSurfaceAngle(M_PI/4);
+    gp3.setSearchRadius(0.4);// Ursprünglich 0.025
+    gp3.setMu(5.0); // Ursprünglich 2.5
+    gp3.setMaximumNearestNeighbors(20); // davor 100
+    gp3.setMaximumSurfaceAngle(M_PI/4); // ursprünglich: M_PI/4
     gp3.setMinimumAngle(M_PI/18);
-    gp3.setMaximumAngle(2*M_PI/2); // ursprunglich: 2*M_PI/3
+    gp3.setMaximumAngle(2*M_PI/1); // ursprunglich: 2*M_PI/3
     gp3.setNormalConsistency(false);
-
-
     gp3.setInputCloud(cloud_with_normals);
     gp3.setSearchMethod(tree2);
     gp3.reconstruct(triangles);
@@ -452,12 +452,10 @@ int main(int argc, char** argv)
     pcl::io::savePolygonFileSTL("mesh.stl", triangles);
     //pcl::io::saveVTKFile("mesh.vtk", triangles);
 
-    //hier weitermachen!!!
-
-
     pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
     pcl::visualization::CloudViewer viewer ("Cluster viewer");
     viewer.showCloud(colored_cloud);
+    viewer.runOnVisualizationThreadOnce(background_color);
     while (!viewer.wasStopped ())
     {
     }
