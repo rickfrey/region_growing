@@ -56,7 +56,7 @@ int main(int argc, char** argv)
 {
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-    if (pcl::io::loadPCDFile <pcl::PointXYZ> ("mehr_abstand_perfekt.pcd",*cloud_unfiltered) == -1)
+    if (pcl::io::loadPCDFile <pcl::PointXYZ> ("Arena_24_7_2014(2).pcd",*cloud_unfiltered) == -1)
     {
         std::cout<<"Cloud reading failed"<<std::endl;
         return (-1);
