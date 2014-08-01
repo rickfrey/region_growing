@@ -45,6 +45,8 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 
+// NEU: VTK PLANES ERZEUGEN UND ALS STL SPEICHERN
+
 using namespace Eigen;
 
 void background_color (pcl::visualization::PCLVisualizer& viewer)
