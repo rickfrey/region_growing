@@ -45,6 +45,10 @@
 
 #include <pcl/visualization/pcl_visualizer.h>
 
+#include <vtkPlaneSource.h>
+#include <vtkPlaneCollection.h>
+#include <vtkSTLWriter.h>
+
 // NEU: VTK PLANES ERZEUGEN UND ALS STL SPEICHERN
 
 using namespace Eigen;
@@ -130,6 +134,12 @@ int main(int argc, char** argv)
 */
     //SCHLEIFE ÜBER ALLE CLUSTER:////////////////////////
     //(In Cluster_cloud ist immer nur ein Cluster!)//////
+
+    // In vtkPlaneCollection sollen alle planes gespeichert werden
+    //vtkSmartPointer<vtkPlaneCollection> PlaneCollection =
+    //  vtkSmartPointer<vtkPlaneCollection>::New();
+    vtkPlaneCollection *PlaneCollection=vtkPlaneCollection::New();
+
     int b=0;
     for(int a=0;a<clusters.size();a++)
     {
@@ -382,6 +392,19 @@ int main(int argc, char** argv)
                 //                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, min_pt.z));
                 //                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
 
+                // Aus aktuellen Punkten vtkPlane erzeugen
+                vtkPolyDataMapper *mapper = vtkPolyDataMapper::New();
+                //vtkPlaneSource *plane= vtkPlaneSource::New();
+                vtkSmartPointer<vtkPlaneSource> plane = vtkSmartPointer<vtkPlaneSource>::New();
+                plane->SetOrigin(min_pt.x,min_pt.y,min_pt.z);
+                plane->SetPoint1(min_pt.x,min_pt.y,max_pt.z);
+                plane->SetPoint2(min_pt.x,max_pt.y,max_pt.z);
+
+                // Aktuelle Plane zu PlaneCollection hinzufügen
+                PlaneCollection->AddItem(plane);
+//                mapper->SetInputConnection(plane->GetOutputPort());
+//                plane->Delete();
+
                 // Schleife, um BoundingBox-"Fläche" mit Punkten zu füllen (um ein Mesh erzeugen zu können
                 int AnzahlPunktehoch = 80;
                 int AnzahlPunktebreit = 400;
@@ -405,6 +428,11 @@ int main(int argc, char** argv)
             }
         }
     }
+
+    // PlanesCollection als STL abspeichern
+    vtkSmartPointer<vtkSTLWriter> schreiber = vtkSmartPointer<vtkSTLWriter>::New();
+    schreiber->SetInputConnection(PlaneCollection->);
+
     std::cout<<"Es wurden "<<b<<" Flächen in Planes_cloud.pcd geschrieben"<<endl;
     writer.write("Planes_cloud.pcd",*planes_cloud,false);
 
