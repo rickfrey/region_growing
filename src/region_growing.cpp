@@ -139,6 +139,11 @@ int main(int argc, char** argv)
     //vtkSmartPointer<vtkPlaneCollection> PlaneCollection =
     //  vtkSmartPointer<vtkPlaneCollection>::New();
     vtkPlaneCollection *PlaneCollection=vtkPlaneCollection::New();
+    vtkPolyDataMapper *mapper = vtkPolyDataMapper::New();
+    vtkPlaneSource *plane= vtkPlaneSource::New();
+    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    vtkSmartPointer<vtkAppendPolyData> appender = vtkSmartPointer<vtkAppendPolyData>::New();
+
 
     int b=0;
     for(int a=0;a<clusters.size();a++)
@@ -393,15 +398,9 @@ int main(int argc, char** argv)
                 //                 Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
 
                 // Aus aktuellen Punkten vtkPlane erzeugen
-                vtkPolyDataMapper *mapper = vtkPolyDataMapper::New();
-                //vtkPlaneSource *plane= vtkPlaneSource::New();
+
                 //vtkSmartPointer<vtkPlaneSource> *plane = vtkSmartPointer<vtkPlaneSource>::New();
                 //vtkPlaneSource *plane;// = vtkPlaneSource::New();
-
-                vtkSmartPointer<vtkPlane> plane = vtkSmartPointer<vtkPlane>::New();
-                plane->SetOrigin( .5, .5, .15 );
-                plane->SetNormal( 0, 0, 1 );
-                plane->set
 
                 plane->Update();
                 plane->SetOrigin(min_pt.x,min_pt.y,min_pt.z);
@@ -409,9 +408,14 @@ int main(int argc, char** argv)
                 plane->SetPoint2(min_pt.x,max_pt.y,max_pt.z);
                 plane->SetResolution(100,100); // Set the number of x-y subdivisions in the plane
 
+                appender->AddInputConnection(plane->GetOutputPort());
+                appender->Update();
+
+                    //actor->SetMapper(mapper);
+
                 // Aktuelle Plane zu PlaneCollection hinzufügen
                 //PlaneCollection->AddItem(plane->GetOutputPort());
-                PlaneCollection->AddItem(plane);
+                //PlaneCollection->AddItem(plane);
 //                mapper->SetInputConnection(plane->GetOutputPort());
 //                plane->Delete();
 
@@ -441,7 +445,11 @@ int main(int argc, char** argv)
 
     // PlanesCollection als STL abspeichern
     vtkSmartPointer<vtkSTLWriter> schreiber = vtkSmartPointer<vtkSTLWriter>::New();
-    //schreiber->SetInputConnection(PlaneCollection->);
+    schreiber->SetInputConnection(plane->GetOutputPort());
+    schreiber->SetFileName("stl_plane_writer_test");
+    schreiber->SetInput(appender->GetOutput());
+    //schreiber->SetFileTypeToASCII();
+    schreiber->Write();
 
     std::cout<<"Es wurden "<<b<<" Flächen in Planes_cloud.pcd geschrieben"<<endl;
     writer.write("Planes_cloud.pcd",*planes_cloud,false);
