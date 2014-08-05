@@ -142,18 +142,18 @@ int main(int argc, char** argv)
     // In vtkPlaneCollection sollen alle planes gespeichert werden
     //vtkSmartPointer<vtkPlaneCollection> PlaneCollection =
     //  vtkSmartPointer<vtkPlaneCollection>::New();
-//    vtkPlaneCollection *PlaneCollection=vtkPlaneCollection::New();
-//    vtkPolyDataMapper *mapper = vtkPolyDataMapper::New();
+    //    vtkPlaneCollection *PlaneCollection=vtkPlaneCollection::New();
+    //    vtkPolyDataMapper *mapper = vtkPolyDataMapper::New();
 
-//    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
-//    vtkSmartPointer<vtkAppendPolyData> appender = vtkSmartPointer<vtkAppendPolyData>::New();
-//    vtkSmartPointer<vtkRenderer> renderer;
+    //    vtkSmartPointer<vtkActor> actor = vtkSmartPointer<vtkActor>::New();
+    //    vtkSmartPointer<vtkAppendPolyData> appender = vtkSmartPointer<vtkAppendPolyData>::New();
+    //    vtkSmartPointer<vtkRenderer> renderer;
 
     vtkSmartPointer<vtkAppendPolyData> appendFilter =
-      vtkSmartPointer<vtkAppendPolyData>::New();
+            vtkSmartPointer<vtkAppendPolyData>::New();
 
     vtkSmartPointer<vtkPolyData> polyplane =
-      vtkSmartPointer<vtkPolyData>::New();
+            vtkSmartPointer<vtkPolyData>::New();
 
 
     int b=0;
@@ -431,48 +431,41 @@ int main(int argc, char** argv)
 
                 // Aus aktuellen Punkten vtkPlaneSource erzeugen
 
-                //vtkSmartPointer<vtkPlaneSource> *plane = vtkSmartPointer<vtkPlaneSource>::New();
-                //vtkPlaneSource *plane;// = vtkPlaneSource::New();
-
                 vtkPlaneSource *plane= vtkPlaneSource::New();
                 vtkPlaneSource *plane2= vtkPlaneSource::New();
                 plane->SetOrigin(min_pt.x,min_pt.y,min_pt.z);
                 plane->SetPoint1(min_pt.x,min_pt.y,max_pt.z);
                 plane->SetPoint2(min_pt.x,max_pt.y,min_pt.z);
+                plane->SetXResolution(10);
                 //plane->SetResolution(10,200); // Set the number of x-y subdivisions in the plane
                 plane->Update();
 
-                plane2->SetOrigin(min_pt.x,max_pt.y,max_pt.z);
-                plane2->SetPoint1(min_pt.x,min_pt.y,max_pt.z);
+                plane2->SetOrigin(min_pt.x,min_pt.y,max_pt.z);
+                plane2->SetPoint1(min_pt.x,max_pt.y,max_pt.z);
                 plane2->SetPoint2(min_pt.x,max_pt.y,min_pt.z);
-                plane->SetResolution(1,1);
+                //plane->SetResolution(1,1);
                 plane2->Update();
 
-                //appender->AddInputConnection(plane->GetOutputPort());
-                //appender->Update();
-
-                    //actor->SetMapper(mapper);
-
-                // Aktuelle Plane zu PlaneCollection hinzufügen
-                //PlaneCollection->AddItem(plane->GetOutputPort());
-                //PlaneCollection->AddItem(plane);
-//                mapper->SetInputConnection(plane->GetOutputPort());
-//                plane->Delete();
-
-//                mapper->SetInputConnection(plane->GetOutputPort());
-//                actor->SetMapper(mapper);
-//                renderer->AddActor(plane);
-
-//                vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
-//                polydata->SetVerts();
-
-                //polyplane->ShallowCopy(plane->GetOutput());
-                //appendFilter->AddInputConnection(polyplane->GetProducerPort());
+                //                appender->AddInputConnection(plane->GetOutputPort());
+                //                appender->Update();
+                //                actor->SetMapper(mapper);
+                //                // Aktuelle Plane zu PlaneCollection hinzufügen
+                //                PlaneCollection->AddItem(plane->GetOutputPort());
+                //                PlaneCollection->AddItem(plane);
+                //                mapper->SetInputConnection(plane->GetOutputPort());
+                //                plane->Delete();
+                //                mapper->SetInputConnection(plane->GetOutputPort());
+                //                actor->SetMapper(mapper);
+                //                renderer->AddActor(plane);
+                //                vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
+                //                polydata->SetVerts();
+                //                polyplane->ShallowCopy(plane->GetOutput());
+                //                appendFilter->AddInputConnection(polyplane->GetProducerPort());
 
                 appendFilter->AddInput(plane->GetOutput());
                 appendFilter->Update();
-                appendFilter->AddInput(plane2->GetOutput());
-                appendFilter->Update();
+                //appendFilter->AddInput(plane2->GetOutput());
+                //appendFilter->Update();
 
                 b=b+1;
             }
@@ -485,11 +478,11 @@ int main(int argc, char** argv)
     schreiber->SetFileName("stl_plane_writer_test");
     schreiber->Update();
     schreiber->Write();
-//    schreiber->SetInputConnection(plane->GetOutputPort());
-//    schreiber->SetFileName("stl_plane_writer_test");
-//    schreiber->SetInput(appender->GetOutput());
-//    //schreiber->SetFileTypeToASCII();
-//    schreiber->Write();
+    //    schreiber->SetInputConnection(plane->GetOutputPort());
+    //    schreiber->SetFileName("stl_plane_writer_test");
+    //    schreiber->SetInput(appender->GetOutput());
+    //    //schreiber->SetFileTypeToASCII();
+    //    schreiber->Write();
 
     std::cout<<"Es wurden "<<b<<" Flächen in Planes_cloud.pcd geschrieben"<<endl;
     writer.write("Planes_cloud.pcd",*planes_cloud,false);
