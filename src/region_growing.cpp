@@ -35,6 +35,8 @@
 #include <vtkActor.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
+#include <vtkQuad.h>
+#include <vtkAssembly.h>
 
 #include <pcl/features/moment_of_inertia_estimation.h>
 #include <vector>
@@ -149,12 +151,22 @@ int main(int argc, char** argv)
     //    vtkSmartPointer<vtkAppendPolyData> appender = vtkSmartPointer<vtkAppendPolyData>::New();
     //    vtkSmartPointer<vtkRenderer> renderer;
 
-    vtkSmartPointer<vtkAppendPolyData> appendFilter =
-            vtkSmartPointer<vtkAppendPolyData>::New();
+    vtkSmartPointer<vtkAssembly> appendFilter =
+            vtkSmartPointer<vtkAssembly>::New();
 
     vtkSmartPointer<vtkPolyData> polyplane =
             vtkSmartPointer<vtkPolyData>::New();
 
+    vtkSmartPointer<vtkPolyData> plane1 = vtkSmartPointer<vtkPolyData>::New();
+
+    vtkSmartPointer<vtkRenderer> renderer =
+            vtkSmartPointer<vtkRenderer>::New();
+    vtkSmartPointer<vtkRenderWindow> renderWindow =
+            vtkSmartPointer<vtkRenderWindow>::New();
+    renderWindow->AddRenderer(renderer);
+    vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
+            vtkSmartPointer<vtkRenderWindowInteractor>::New();
+    renderWindowInteractor->SetRenderWindow(renderWindow);
 
     int b=0;
     for(int a=0;a<clusters.size();a++)
@@ -374,9 +386,9 @@ int main(int argc, char** argv)
                 // draw the cloud and the box
                 //pcl::visualization::PCLVisualizer viewer;
                 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer);
-                viewer->addCoordinateSystem ();
+                //                viewer->addCoordinateSystem ();
                 //viewer->addPointCloud(planes_projected);
-                viewer->addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
+                //                viewer->addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
                 std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " <<
                              min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
                 std::cout << "Punkte: " << min_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
@@ -393,6 +405,9 @@ int main(int argc, char** argv)
                 P1.x=min_pt.x;P2.x=min_pt.x; P3.x=min_pt.x; P4.x=min_pt.x;
                 P1.y=min_pt.y;P2.y=min_pt.y; P3.y=max_pt.y; P4.y=max_pt.y;
                 P1.z=min_pt.z;P2.z=max_pt.z; P3.z=min_pt.z; P4.z=max_pt.z;
+
+
+                float a=min_pt.x, b=min_pt.y, c=min_pt.z, d=min_pt.x, e=min_pt.y, f=max_pt.z, g=min_pt.x, h=max_pt.y, i=min_pt.z, j=min_pt.x, k=max_pt.y, l=max_pt.z;
 
                 Test->push_back(P1);
                 Test->push_back(P2);
@@ -429,55 +444,78 @@ int main(int argc, char** argv)
                 //std::cout<<"Cluster "<<a<<" wurde gespeichert!"<<std::endl;
 
 
-                // Aus aktuellen Punkten vtkPlaneSource erzeugen
+                double p0[3] = {a, b, c};
+                double p1[3] = {d,e,f};
+                double p2[3] = {g, h, (double)max_pt.z};
+                double p3[3] = {(double)min_pt.x, (double)max_pt.y, (double)min_pt.z};
 
-                vtkPlaneSource *plane= vtkPlaneSource::New();
-                vtkPlaneSource *plane2= vtkPlaneSource::New();
-                plane->SetOrigin(min_pt.x,min_pt.y,min_pt.z);
-                plane->SetPoint1(min_pt.x,min_pt.y,max_pt.z);
-                plane->SetPoint2(min_pt.x,max_pt.y,min_pt.z);
-                plane->SetXResolution(10);
-                //plane->SetResolution(10,200); // Set the number of x-y subdivisions in the plane
-                plane->Update();
 
-                plane2->SetOrigin(min_pt.x,min_pt.y,max_pt.z);
-                plane2->SetPoint1(min_pt.x,max_pt.y,max_pt.z);
-                plane2->SetPoint2(min_pt.x,max_pt.y,min_pt.z);
-                //plane->SetResolution(1,1);
-                plane2->Update();
+                vtkSmartPointer<vtkPoints> points =
+                        vtkSmartPointer<vtkPoints>::New();
+                points->InsertNextPoint(p0);
+                points->InsertNextPoint(p1);
+                points->InsertNextPoint(p2);
+                points->InsertNextPoint(p3);
 
-                //                appender->AddInputConnection(plane->GetOutputPort());
-                //                appender->Update();
-                //                actor->SetMapper(mapper);
-                //                // Aktuelle Plane zu PlaneCollection hinzufügen
-                //                PlaneCollection->AddItem(plane->GetOutputPort());
-                //                PlaneCollection->AddItem(plane);
-                //                mapper->SetInputConnection(plane->GetOutputPort());
-                //                plane->Delete();
-                //                mapper->SetInputConnection(plane->GetOutputPort());
-                //                actor->SetMapper(mapper);
-                //                renderer->AddActor(plane);
-                //                vtkSmartPointer<vtkPolyData> polydata = vtkSmartPointer<vtkPolyData>::New();
-                //                polydata->SetVerts();
-                //                polyplane->ShallowCopy(plane->GetOutput());
-                //                appendFilter->AddInputConnection(polyplane->GetProducerPort());
+                // Create a quad on the four points
+                vtkSmartPointer<vtkQuad> quad =
+                        vtkSmartPointer<vtkQuad>::New();
+                quad->GetPointIds()->SetId(0,0);
+                quad->GetPointIds()->SetId(1,1);
+                quad->GetPointIds()->SetId(2,2);
+                quad->GetPointIds()->SetId(3,3);
 
-                appendFilter->AddInput(plane->GetOutput());
-                appendFilter->Update();
-                //appendFilter->AddInput(plane2->GetOutput());
-                //appendFilter->Update();
+                // Create a cell array to store the quad in
+                vtkSmartPointer<vtkCellArray> quads =
+                        vtkSmartPointer<vtkCellArray>::New();
+                quads->InsertNextCell(quad);
+
+                // Create a polydata to store everything in
+                vtkSmartPointer<vtkPolyData> polydata =
+                        vtkSmartPointer<vtkPolyData>::New();
+
+                // Add the points and quads to the dataset
+                polydata->SetPoints(points);
+                polydata->SetPolys(quads);
+
+                // Setup actor and mapper
+                vtkSmartPointer<vtkPolyDataMapper> mapper =
+                        vtkSmartPointer<vtkPolyDataMapper>::New();
+#if VTK_MAJOR_VERSION <= 5
+                mapper->SetInput(polydata);
+#else
+                mapper->SetInputData(polydata);
+#endif
+
+                vtkSmartPointer<vtkActor> actor =
+                        vtkSmartPointer<vtkActor>::New();
+                actor->SetMapper(mapper);
+
+                // Setup render window, renderer, and interactor
+
+                renderer->AddActor(actor);
+
+
+
+                // Add the points to a vtkPoints object
+
+
+
 
                 b=b+1;
             }
         }
     }
 
+    renderWindow->Render();
+    renderWindowInteractor->Start();
+
     // PlanesCollection als STL abspeichern
-    vtkSmartPointer<vtkSTLWriter> schreiber = vtkSmartPointer<vtkSTLWriter>::New();
-    schreiber->SetInput(appendFilter->GetOutput());
-    schreiber->SetFileName("stl_plane_writer_test");
-    schreiber->Update();
-    schreiber->Write();
+    //    vtkSmartPointer<vtkSTLWriter> schreiber = vtkSmartPointer<vtkSTLWriter>::New();
+    //    schreiber->SetInput(appendFilter);
+    //    schreiber->SetFileName("stl_plane_writer_test");
+    //    schreiber->Update();
+    //    schreiber->Write();
     //    schreiber->SetInputConnection(plane->GetOutputPort());
     //    schreiber->SetFileName("stl_plane_writer_test");
     //    schreiber->SetInput(appender->GetOutput());
