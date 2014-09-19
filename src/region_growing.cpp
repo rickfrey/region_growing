@@ -46,30 +46,39 @@
 #include <vtkPolyData.h>
 #include <vtkAppendPolyData.h>
 
-#include <vtkPlanes.h>
 
-// NEU: VTK PLANES ERZEUGEN UND ALS STL SPEICHERN
 using namespace Eigen;
+
+
 void background_color (pcl::visualization::PCLVisualizer& viewer)
 {
 viewer.setBackgroundColor (1.0, 1.0, 1.0);
 }
+
+
+
 int main(int argc, char** argv)
 {
+
+// Punktwolke laden
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-if (pcl::io::loadPCDFile <pcl::PointXYZ> ("Arena_24_7_2014_2.pcd",*cloud_unfiltered) == -1)
+if (pcl::io::loadPCDFile <pcl::PointXYZ> ("19_09_GUT_downsampled.pcd",*cloud_unfiltered) == -1)
 {
 std::cout<<"Cloud reading failed"<<std::endl;
 return (-1);
 }
+
 pcl::PCDWriter writer;
+
 //Filter für Höhen- und Tiefenbegrenzung:
 pcl::PassThrough<pcl::PointXYZ> pass;
 pass.setInputCloud(cloud_unfiltered);
 pass.setFilterFieldName("z");
-pass.setFilterLimits(-0.2,0.15);//Für Stativ ca. (-0.9,-0.2)
+pass.setFilterLimits(-0.2,0.2);//Für Stativ ca. (-0.9,-0.2)
 pass.filter(*cloud);
+
+// Berechnen der Punktnormalen
 pcl::search::Search<pcl::PointXYZ>::Ptr tree = boost::shared_ptr<pcl::search::Search<pcl::PointXYZ> > (new pcl::search::KdTree<pcl::PointXYZ>);
 pcl::PointCloud <pcl::Normal>::Ptr normals (new pcl::PointCloud <pcl::Normal>);
 pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> normal_estimator;
@@ -78,6 +87,8 @@ normal_estimator.setInputCloud(cloud);
 normal_estimator.setKSearch(100);// Ursprünglich:50
 // http://pointclouds.org/documentation/tutorials/normal_estimation.php
 normal_estimator.compute(*normals);
+
+// Segmentierung mit dem RegionGrowing-Algorithmus (Setzen der Parameter)
 pcl::RegionGrowing<pcl::PointXYZ, pcl::Normal> reg;
 reg.setMinClusterSize (200);
 //reg.setMaxClusterSize (10000);
@@ -89,23 +100,28 @@ reg.setInputCloud (cloud);
 reg.setInputNormals (normals);
 reg.setSmoothnessThreshold (4.0 / 180.0 * M_PI); // Ursprünglich: 7.0/180*M_PI
 // je kleiner desto weniger punkte sind "smooth" genug ->Klares Abgrenzen der Cluster!
-reg.setCurvatureThreshold (.4);//Ursprünglich:1.0 // je kleiner desto geringer darf sich das Cluster krümmen
+reg.setCurvatureThreshold (.3);//Ursprünglich:1.0 // je kleiner desto geringer darf sich das Cluster krümmen
+
 // Anwendung des Cluster-Filters auf Input-Wolke "cloud"
 std::vector <pcl::PointIndices> clusters;
 reg.extract (clusters);
+
 pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 pcl::ExtractIndices<pcl::PointXYZ> extract;
 extract.setInputCloud(cloud);
 pcl::PointCloud<pcl::PointXYZ>::Ptr planes_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 
-vtkSmartPointer<vtkAppendPolyData> appendFilter =
-vtkSmartPointer<vtkAppendPolyData>::New();
-vtkSmartPointer<vtkPolyData> polyplane =
-vtkSmartPointer<vtkPolyData>::New();
+//vtkSmartPointer<vtkAppendPolyData> appendFilter =
+//vtkSmartPointer<vtkAppendPolyData>::New();
+//vtkSmartPointer<vtkPolyData> polyplane =
+//vtkSmartPointer<vtkPolyData>::New();
+
 int b=0;
+
+// Schleife über alle detektierten Cluster
 for(int a=0;a<clusters.size();a++)
 {
-if(clusters[a].indices.size() >50 )
+if(clusters[a].indices.size() >100 )
 {
 pcl::IndicesPtr indices_ptr (new std::vector<int> (clusters[a].indices.size ()));
 for (int i=0;i<indices_ptr->size();i++)
@@ -117,6 +133,7 @@ extract.setIndices(indices_ptr);
 extract.setNegative(false);
 extract.filter(*cluster_cloud);// Punkte des Cluster a werden in cluster_cloud geschrieben
 std::cout<<"cluster_cloud["<<a<<"] hat "<<cluster_cloud->width*cluster_cloud->height<<" Punkte."<<std::endl;
+
 //Erzeugen einer Ebene aus Cluster_cloud
 pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients ());
 pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
@@ -128,6 +145,7 @@ seg.setMaxIterations(1000);
 seg.setDistanceThreshold(0.1);
 seg.setInputCloud(cluster_cloud);
 seg.segment(*inliers, *coefficients);
+
 // Wenn Ebene vertikal: Abspeichern in Cluster_i.pcd
 if(coefficients->values[2]<.9 && coefficients->values[2]>(-.9))//ax+by+cz+d=0 (wenn c=0 => Ebene parallel zur z-Achse)
 {
@@ -141,7 +159,7 @@ proj2.setInputCloud(cluster_cloud);
 proj2.setModelCoefficients(coefficients);
 proj2.filter(*planes_projected);
 
-// pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
+// Punkte in Eigenraum transformieren, um bounding box zu berechnen (Quelle: pcl-users Forum (http://www.pcl-users.org/Finding-oriented-bounding-box-of-a-cloud-td4024616.html)
 // compute principal direction
 Eigen::Vector4f centroid;
 pcl::compute3DCentroid(*planes_projected, centroid);
@@ -150,6 +168,7 @@ computeCovarianceMatrixNormalized(*planes_projected, centroid, covariance);
 Eigen::SelfAdjointEigenSolver<Eigen::Matrix3f> eigen_solver(covariance, Eigen::ComputeEigenvectors);
 Eigen::Matrix3f eigDx = eigen_solver.eigenvectors();
 eigDx.col(2) = eigDx.col(0).cross(eigDx.col(1));
+
 // move the points to the that reference frame
 Eigen::Matrix4f p2w(Eigen::Matrix4f::Identity());
 p2w.block<3,3>(0,0) = eigDx.transpose();
@@ -159,17 +178,20 @@ pcl::transformPointCloud(*planes_projected, cPoints, p2w);
 pcl::PointXYZ min_pt, max_pt;
 pcl::getMinMax3D(cPoints, min_pt, max_pt);
 const Eigen::Vector3f mean_diag = 0.5f*(max_pt.getVector3fMap() + min_pt.getVector3fMap());
+
 // final transform
 const Eigen::Quaternionf qfinal(eigDx);
 const Eigen::Vector3f tfinal = eigDx*mean_diag + centroid.head<3>();
-// draw the cloud and the box
-//pcl::visualization::PCLVisualizer viewer;
+
+// Punktwolke und bounding box im viewer anzeigen
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer);
 viewer->addCoordinateSystem ();
 //viewer->addPointCloud(planes_projected);
 viewer->addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
-std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " <<
-min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
+
+
+// Ausgabe der Eckpunkte (kann gelöscht werden)
+std::cout << " min.x= " << min_pt.x << " max.x= " << max_pt.x << " min.y= " << min_pt.y << " max.y= " << max_pt.y << " min.z= " << min_pt.z << " max.z= " << max_pt.z<< std::endl;
 std::cout << "Punkte: " << min_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
 std::cout << min_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
 std::cout << min_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
@@ -178,37 +200,53 @@ std::cout << max_pt.x <<";" << min_pt.y << ";" << min_pt.z <<std::endl;
 std::cout << max_pt.x <<";" << min_pt.y << ";" << max_pt.z <<std::endl;
 std::cout << max_pt.x <<";" << max_pt.y << ";" << min_pt.z <<std::endl;
 std::cout << max_pt.x <<";" << max_pt.y << ";" << max_pt.z <<std::endl;
-pcl::PointCloud<pcl::PointXYZ>::Ptr Test (new pcl::PointCloud<pcl::PointXYZ>);
+
+// Erzeugen einer Punktwolke mit Punkten, die zwischen den Extrema liegen (um anschließend eine dichte Oberfläche zu erzeugen)
+pcl::PointCloud<pcl::PointXYZ>::Ptr Fillcloud (new pcl::PointCloud<pcl::PointXYZ>);
 pcl::PointXYZ P1,P2,P3,P4;
-P1.x=min_pt.x;P2.x=min_pt.x; P3.x=min_pt.x; P4.x=min_pt.x;
+P1.x=max_pt.x;P2.x=max_pt.x; P3.x=max_pt.x; P4.x=max_pt.x;
 P1.y=min_pt.y;P2.y=min_pt.y; P3.y=max_pt.y; P4.y=max_pt.y;
 P1.z=min_pt.z;P2.z=max_pt.z; P3.z=min_pt.z; P4.z=max_pt.z;
-Test->push_back(P1);
-Test->push_back(P2);
-Test->push_back(P3);
-Test->push_back(P4);
-// Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, min_pt.z)); // P1
-// Test->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, max_pt.z)); // P2
-// Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, min_pt.z)); // P3
-// Test->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, max_pt.z)); // P4 // Enweder alle x_max oder alle x_min nehmen WARUM?????
-// Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, min_pt.z));
-// Test->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, max_pt.z));
-// Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, min_pt.z));
-// Test->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
+
+//P4.x=min_pt.x;P3.x=min_pt.x; P2.x=min_pt.x; P1.x=min_pt.x;
+//P4.y=min_pt.y;P3.y=min_pt.y; P2.y=max_pt.y; P1.y=max_pt.y;
+//P4.z=min_pt.z;P3.z=max_pt.z; P2.z=min_pt.z; P1.z=max_pt.z;
+
+Fillcloud->push_back(P1);
+Fillcloud->push_back(P2);
+Fillcloud->push_back(P3);
+Fillcloud->push_back(P4);
+// Fillcloud->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, min_pt.z)); // P1
+// Fillcloud->push_back (pcl::PointXYZ (min_pt.x, min_pt.y, max_pt.z)); // P2
+// Fillcloud->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, min_pt.z)); // P3
+// Fillcloud->push_back (pcl::PointXYZ (min_pt.x, max_pt.y, max_pt.z)); // P4 // Enweder alle x_max oder alle x_min nehmen WARUM?????
+// Fillcloud->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, min_pt.z));
+// Fillcloud->push_back (pcl::PointXYZ (max_pt.x, min_pt.y, max_pt.z));
+// Fillcloud->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, min_pt.z));
+// Fillcloud->push_back (pcl::PointXYZ (max_pt.x, max_pt.y, max_pt.z));
 // Schleife, um BoundingBox-"Fläche" mit Punkten zu füllen (um ein Mesh erzeugen zu können
+
+
 int AnzahlPunktehoch = 80;
 int AnzahlPunktebreit = 400;
-for(int ii=0; ii<AnzahlPunktebreit+1; ii++){
-Test->push_back(pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii,P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii,P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii));
-for(int jj=0; jj<AnzahlPunktehoch+1; jj++){
-Test->push_back(pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii + (P3.x-P1.x)/AnzahlPunktehoch*jj,P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii + (P3.y-P1.y)/AnzahlPunktehoch*jj,P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii + (P3.z-P1.z)/AnzahlPunktehoch*jj));
+for( int ii = 0; ii < AnzahlPunktebreit+1; ii++ ){
+    Fillcloud->push_back( pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii , P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii , P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii) );
+    for( int jj = 0; jj < AnzahlPunktehoch+1; jj++ ){
+        Fillcloud->push_back( pcl::PointXYZ (P1.x+((P2.x-P1.x)/AnzahlPunktebreit)*ii + (P3.x-P1.x)/AnzahlPunktehoch*jj , P1.y+((P2.y-P1.y)/AnzahlPunktebreit)*ii + (P3.y-P1.y)/AnzahlPunktehoch*jj , P1.z+((P2.z-P1.z)/AnzahlPunktebreit)*ii + (P3.z-P1.z)/AnzahlPunktehoch*jj));
+    }
 }
-}
-pcl::PointCloud<pcl::PointXYZ>::Ptr Test_transformiert (new pcl::PointCloud<pcl::PointXYZ>);
-pcl::transformPointCloud(*Test,*Test_transformiert,tfinal,qfinal);
-//viewer->addPointCloud(Test_transformiert);
+
+// Erzeugte Punktwolke, die die Extrema "verbindet" rücktransformieren
+pcl::PointCloud<pcl::PointXYZ>::Ptr Fillcloud_transformiert (new pcl::PointCloud<pcl::PointXYZ>);
+pcl::transformPointCloud(*Fillcloud,*Fillcloud_transformiert,tfinal,qfinal);
+
+// Fillcloud wird zum Viewer hinzugefügt; "spin" auskommentieren wenn nicht jedes Fenster einzeln weggeklickt werden soll
+//viewer->addPointCloud(Fillcloud_transformiert);
 //viewer->spin();
-*planes_cloud+=*Test_transformiert;//Alle Clusterebenen, die vertikal sind werden in planes_cloud (JETZT: Test) gespeichert
+
+//Alle Clusterebenen, die vertikal sind werden in planes_cloud gespeichert
+*planes_cloud+=*Fillcloud_transformiert;
+
 //std::stringstream ss;
 //ss<<"Cluster_"<<a<<".pcd";
 //writer.write<pcl::PointXYZ>(ss.str(),*cluster_cloud,false);
@@ -242,29 +280,30 @@ plane2->Update();
 // polydata->SetVerts();
 // polyplane->ShallowCopy(plane->GetOutput());
 // appendFilter->AddInputConnection(polyplane->GetProducerPort());
-appendFilter->AddInput(plane->GetOutput());
-appendFilter->Update();
+
+//appendFilter->AddInput(plane->GetOutput());
+//appendFilter->Update();
+
 //appendFilter->AddInput(plane2->GetOutput());
 //appendFilter->Update();
 b=b+1;
-
-vtkSmartPointer<vtkPlanes> planes = vtkSmartPointer<vtkPlanes>::New();
-//planes->SetBounds();
-//planes->SetTransform();
 }
 }
 }
 // PlanesCollection als STL abspeichern
-vtkSmartPointer<vtkSTLWriter> schreiber = vtkSmartPointer<vtkSTLWriter>::New();
-schreiber->SetInput(appendFilter->GetOutput());
-schreiber->SetFileName("stl_plane_writer_test");
-schreiber->Update();
-schreiber->Write();
+//vtkSmartPointer<vtkSTLWriter> schreiber = vtkSmartPointer<vtkSTLWriter>::New();
+//schreiber->SetInput(appendFilter->GetOutput());
+//schreiber->SetFileName("funktioniert nicht!");
+//schreiber->Update();
+//schreiber->Write();
+
 // schreiber->SetInputConnection(plane->GetOutputPort());
-// schreiber->SetFileName("stl_plane_writer_test");
+// schreiber->SetFileName("");
 // schreiber->SetInput(appender->GetOutput());
 // //schreiber->SetFileTypeToASCII();
 // schreiber->Write();
+
+// Ausgabe
 std::cout<<"Es wurden "<<b<<" Flächen in Planes_cloud.pcd geschrieben"<<endl;
 writer.write("Planes_cloud.pcd",*planes_cloud,false);
 std::cout << "Number of clusters is equal to " << clusters.size () << std::endl;
@@ -277,7 +316,8 @@ while (counter < 5 || counter > clusters[0].indices.size ())
 std::cout << clusters[0].indices[counter] << std::endl;
 counter++;
 }
-// planes_cloud zu Surface konvertieren u. als stl oder vtk speichern!
+
+// planes_cloud zu einer Oberfläche konvertieren u. als stl oder vtk speichern!
 pcl::NormalEstimation<pcl::PointXYZ, pcl::Normal> n;
 pcl::PointCloud<pcl::Normal>::Ptr normals_triangles (new pcl::PointCloud<pcl::Normal>);
 pcl::search::KdTree<pcl::PointXYZ>::Ptr tree_triangles (new pcl::search::KdTree<pcl::PointXYZ>);
@@ -286,12 +326,14 @@ n.setInputCloud(planes_cloud);
 n.setSearchMethod(tree_triangles);
 n.setKSearch(20);
 n.compute(*normals_triangles);
+
 pcl::PointCloud<pcl::PointNormal>::Ptr cloud_with_normals (new pcl::PointCloud<pcl::PointNormal>);
 pcl::concatenateFields (*planes_cloud,*normals_triangles,*cloud_with_normals);
 pcl::search::KdTree<pcl::PointNormal>::Ptr tree2 (new pcl::search::KdTree<pcl::PointNormal>);
 tree2->setInputCloud(cloud_with_normals);
 pcl::GreedyProjectionTriangulation<pcl::PointNormal> gp3;
 pcl::PolygonMesh triangles;
+
 gp3.setSearchRadius(0.4);// Ursprünglich 0.025
 gp3.setMu(5.0); // Ursprünglich 2.5
 gp3.setMaximumNearestNeighbors(20); // davor 100
@@ -302,10 +344,15 @@ gp3.setNormalConsistency(false);
 gp3.setInputCloud(cloud_with_normals);
 gp3.setSearchMethod(tree2);
 gp3.reconstruct(triangles);
+
 std::vector<int> parts = gp3.getPartIDs();
 std::vector<int> states = gp3.getPointStates();
+
+// Oberfläche als STL-Modell abspeichern
 pcl::io::savePolygonFileSTL("mesh.stl", triangles);
 //pcl::io::saveVTKFile("mesh.vtk", triangles);
+
+// Farbliche Visualisierung der segmentierten Punktwolke
 pcl::PointCloud <pcl::PointXYZRGB>::Ptr colored_cloud = reg.getColoredCloud ();
 pcl::visualization::CloudViewer viewer ("Cluster viewer");
 viewer.showCloud(colored_cloud);
