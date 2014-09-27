@@ -63,7 +63,7 @@ int main(int argc, char** argv)
 // Punktwolke laden
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_unfiltered (new pcl::PointCloud<pcl::PointXYZ>);
 pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZ>);
-if (pcl::io::loadPCDFile <pcl::PointXYZ> ("19_09_GUT_downsampled.pcd",*cloud_unfiltered) == -1)
+if (pcl::io::loadPCDFile <pcl::PointXYZ> ("Arena_24_7_2014.pcd",*cloud_unfiltered) == -1)
 {
 std::cout<<"Cloud reading failed"<<std::endl;
 return (-1);
@@ -75,7 +75,7 @@ pcl::PCDWriter writer;
 pcl::PassThrough<pcl::PointXYZ> pass;
 pass.setInputCloud(cloud_unfiltered);
 pass.setFilterFieldName("z");
-pass.setFilterLimits(-0.2,0.2);//Für Stativ ca. (-0.9,-0.2)
+pass.setFilterLimits(-0.2,0.3);//Für Stativ ca. (-0.9,-0.2)
 pass.filter(*cloud);
 
 // Berechnen der Punktnormalen
@@ -186,7 +186,7 @@ const Eigen::Vector3f tfinal = eigDx*mean_diag + centroid.head<3>();
 // Punktwolke und bounding box im viewer anzeigen
 boost::shared_ptr<pcl::visualization::PCLVisualizer> viewer (new pcl::visualization::PCLVisualizer);
 viewer->addCoordinateSystem ();
-//viewer->addPointCloud(planes_projected);
+viewer->addPointCloud(planes_projected);// Danach auskommentieren
 viewer->addCube(tfinal, qfinal, max_pt.x - min_pt.x, max_pt.y - min_pt.y, max_pt.z - min_pt.z);
 
 
@@ -349,7 +349,7 @@ std::vector<int> parts = gp3.getPartIDs();
 std::vector<int> states = gp3.getPointStates();
 
 // Oberfläche als STL-Modell abspeichern
-pcl::io::savePolygonFileSTL("mesh.stl", triangles);
+pcl::io::savePolygonFileSTL("Arena_24_7_2014.stl", triangles);
 //pcl::io::saveVTKFile("mesh.vtk", triangles);
 
 // Farbliche Visualisierung der segmentierten Punktwolke
